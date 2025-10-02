@@ -1,0 +1,15 @@
+# Arquivos de ambiente Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+
+# Arquivos de dados brutos e processados (opcional, dependendo da estratégia)
+# data/raw/
+# data/processed/
+
+# Arquivos de configuração local
+.env
+
