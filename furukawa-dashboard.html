@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>Furukawa • Controle de Trabalho</title>
+<style>
+:root{--bg:#0b1220;--panel:#121d2e;--panel2:#18263a;--line:#2a3a52;--text:#edf3fb;--muted:#9aabc1;--green:#38d39f;--blue:#65a9ff;--amber:#ffc66d;--red:#ff7b83}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#0b1220,#111d30);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:1180px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-size:clamp(23px,4vw,34px);margin:0}.sub{color:var(--muted);margin-top:4px}.tag{border:1px solid #34506d;border-radius:999px;padding:7px 12px;color:#b9d6f7;font-size:13px}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+.card,.panel{background:rgba(18,29,46,.95);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 8px 28px #0002}
+.kicker{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.metric{font-size:clamp(21px,3vw,29px);font-weight:750;margin-top:5px}.small{font-size:12px;color:var(--muted)}
+.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(290px,.85fr);gap:14px}
+.panel h2{font-size:18px;margin:0 0 12px}.monthbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px}
+button,select,input{font:inherit;color:var(--text);background:#1b2b41;border:1px solid #3a4c65;border-radius:9px;padding:9px}
+button{cursor:pointer}button:hover{border-color:var(--blue)}.monthname{font-weight:700;font-size:18px}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.dow{text-align:center;color:var(--muted);font-size:12px;padding:5px 0}
+.day{min-height:84px;border:1px solid var(--line);border-radius:10px;padding:7px;background:#101a2a;cursor:pointer;position:relative;text-align:left}
+.day:hover{border-color:var(--blue)}.day.blank{visibility:hidden}.day.weekend{background:#182337}.day.selected{outline:2px solid var(--blue);border-color:var(--blue)}
+.day.work{background:#12372f;border-color:#247d65}.day .num{font-weight:700}.day .shift{display:block;font-size:11px;color:#c5d5e8;margin-top:5px}.day .hrs{display:block;font-size:10px;color:var(--muted);margin-top:1px}.day .amount{display:block;font-size:11px;color:var(--green);font-weight:700;margin-top:2px}.bonus{position:absolute;right:5px;top:5px;color:var(--amber);font-size:10px;font-weight:700}
+.legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:12px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;background:var(--green)}
+.field{display:grid;gap:5px;margin:10px 0}.field label{font-size:12px;color:var(--muted)}.field input,.field select{width:100%}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.primary{background:#236d5a;border-color:#329a7d}.danger{background:#44252e;border-color:#74404c}
+.info{background:#0e1928;border:1px solid var(--line);border-radius:10px;padding:11px;margin-top:12px;font-size:13px;color:#c3d2e5}
+.check{display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px;color:#c3d2e5}.check input{width:auto}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--muted);font-weight:600}
+footer{color:var(--muted);font-size:12px;text-align:center;margin:18px 0}
+@media(max-width:850px){.cards{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}}
+@media(max-width:420px){.wrap{padding:12px}.day{min-height:70px;padding:5px}.day .shift{font-size:10px}.day .amount{font-size:10px}.cards{gap:8px}.card{padding:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+ <div><h1>Furukawa <span style="color:var(--green)">•</span> Controle de Trabalho</h1><div class="sub">Empreiteira Just · Calendário, horas e previsão salarial</div></div>
+ <div class="tag">Dados salvos neste aparelho</div>
+</header>
+<section class="cards">
+ <div class="card"><div class="kicker">Total previsto no mês</div><div class="metric" id="monthTotal">¥0</div><div class="small" id="monthHint">0 dias trabalhados</div></div>
+ <div class="card"><div class="kicker">Horas líquidas no mês</div><div class="metric" id="monthHours">0h</div><div class="small">Já descontando o kyūkei</div></div>
+ <div class="card"><div class="kicker">Adicional noturno</div><div class="metric" id="nightTotal">¥0</div><div class="small">22:00 até 05:00 · +25%</div></div>
+ <div class="card"><div class="kicker">Ajuda fim de semana</div><div class="metric" id="bonusTotal">¥0</div><div class="small">¥2.000 por sábado/domingo trabalhado</div></div>
+</section>
+<div class="layout">
+ <section class="panel">
+  <div class="monthbar"><button id="prev">‹ Anterior</button><div class="monthname" id="monthLabel"></div><button id="next">Próximo ›</button></div>
+  <div class="calendar" id="calendar"></div>
+  <div class="legend"><span><i class="dot"></i>Dia trabalhado</span><span>🟡 Ajuda sábado/domingo</span><span>Toque num dia para editar</span></div>
+ </section>
+ <aside class="panel">
+  <h2 id="editorTitle">Registrar trabalho</h2>
+  <div class="small">Toque em um dia no calendário e informe o turno.</div>
+  <div class="field"><label>Data selecionada</label><input id="dateLabel" readonly></div>
+  <div class="field"><label>Trabalhou neste dia?</label><select id="worked"><option value="no">Não trabalhei / folga</option><option value="yes">Sim, trabalhei</option></select></div>
+  <div class="field"><label>Turno</label><select id="shift">
+   <option value="1">1º turno · 08:00–16:45</option>
+   <option value="2">2º turno · 16:35–23:35</option>
+   <option value="3">3º turno · 23:35–08:10</option>
+   <option value="custom">Personalizado</option>
+  </select></div>
+  <div class="row"><div class="field"><label>Entrada</label><input id="start" type="time" value="08:00"></div><div class="field"><label>Saída</label><input id="end" type="time" value="16:45"></div></div>
+  <div class="row"><div class="field"><label>Kyūkei / intervalo (min)</label><input id="break" type="number" min="0" max="600" step="5" value="60"></div><div class="field"><label>Valor hora (¥)</label><input id="rate" type="number" min="0" step="1" value="1670"></div></div>
+  <div class="check"><input type="checkbox" id="breakNight"><label for="breakNight" style="margin:0;color:var(--muted)">Kyūkei cai dentro da faixa noturna (22h–5h) — desconta também do adicional</label></div>
+  <div class="row"><div class="field"><label>Adicional noturno (%)</label><input id="premium" type="number" min="0" step="1" value="25"></div><div class="field"><label>Ajuda sábado/domingo (¥)</label><input id="weekendBonus" type="number" min="0" step="100" value="2000"></div></div>
+  <div class="info" id="estimate">Estimativa do dia: ¥0</div>
+  <div class="actions"><button class="primary" id="save">Salvar dia</button><button id="clear">Limpar dia</button></div>
+  <hr>
+  <h2>Parâmetros e observações</h2>
+  <div class="small">O kyūkei (intervalo/almoço) é descontado das horas. Ex.: 1º turno 08:00–16:45 = 8,75h − 60min = <b>7,75h líquidas</b>. O adicional noturno (+25%) incide só sobre as horas entre 22:00 e 05:00; se o turno virar a meia-noite, o cálculo já considera a virada.</div>
+  <div class="info">Base conforme a foto: ¥1.670/h, +25% noturno, três turnos e ¥2.000 de ajuda em sábado/domingo trabalhado. O valor exibido é bruto estimado, antes de impostos/descontos de folha.</div>
+ </aside>
+</div>
+<section class="panel" style="margin-top:14px">
+ <h2>Resumo por dia do mês</h2>
+ <div class="tablewrap"><table><thead><tr><th>Data</th><th>Turno</th><th>Horas líq.</th><th>Base</th><th>Adic. noturno</th><th>Ajuda</th><th>Total</th></tr></thead><tbody id="details"></tbody></table></div>
+ <div class="small" id="empty">Nenhum dia de trabalho registrado neste mês.</div>
+</section>
+<footer>Os registros ficam salvos localmente no navegador deste aparelho (localStorage). Use o mesmo navegador para consultar depois.</footer>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const KEY='furukawa_just_work_v2';
+let data={}; try{data=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){data={}}
+// migração simples da v1 (se existir)
+try{const old=JSON.parse(localStorage.getItem('furukawa_just_work_v1')||'null');if(old&&!Object.keys(data).length){data=old}}catch(e){}
+let cursor=new Date(); cursor=new Date(cursor.getFullYear(),cursor.getMonth(),1);
+let selected=new Date(); selected.setHours(0,0,0,0);
+const SHIFTS={'1':{start:'08:00',end:'16:45'},'2':{start:'16:35',end:'23:35'},'3':{start:'23:35',end:'08:10'}};
+const DEF_BREAK=60;
+const money=n=>'¥'+Math.round(n).toLocaleString('ja-JP');
+const pad=n=>String(n).padStart(2,'0');
+const key=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const fmtDate=d=>d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+function mins(t){let [h,m]=t.split(':').map(Number);return h*60+m}
+function overlap(a,b,c,d){return Math.max(0,Math.min(b,d)-Math.max(a,c))}
+function calc(rec,dateKey){
+ if(!rec||!rec.worked)return {hours:0,base:0,night:0,bonus:0,total:0,gross:0,brk:0};
+ let s=mins(rec.start),e=mins(rec.end); if(e<=s)e+=1440;
+ let gross=e-s, br=Math.max(0,Math.min(600,Number(rec.break)||0)), net=Math.max(0,gross-br);
+ // horas noturnas brutas (22:00–05:00), considerando virada do dia
+ let night=overlap(s,e,1320,1740)+overlap(s,e,1440,1740)+overlap(s,e,0,300);
+ night=overlap(s,e,1320,1740)+overlap(s,e,0,300); // 22:00->05:00 (dia 0) + 00:00->05:00 (dia seguinte via +1440 já embutido quando e>1440)
+ // forma robusta: soma faixa noturna em janela de 2 dias
+ night=0; for(let dd=0; dd<=1; dd++){night+=overlap(s,e,dd*1440+1320,dd*1440+1740)}
+ // se o kyūkei ocorre dentro da faixa noturna, abate do noturno também
+ if(rec.breakNight){night=Math.max(0,night-br)}
+ night=Math.min(night,net);
+ let rate=Number(rec.rate)||0, prem=Number(rec.premium)||0;
+ let base=net/60*rate, nightPay=night/60*rate*prem/100;
+ let d=new Date(dateKey+'T12:00:00'), bonus=(d.getDay()===0||d.getDay()===6)?Number(rec.weekendBonus||0):0;
+ return {hours:net/60,base,night:nightPay,bonus,total:base+nightPay+bonus,gross:gross/60,brk:br};
+}
+function saveLocal(){localStorage.setItem(KEY,JSON.stringify(data))}
+function renderCalendar(){
+ $('monthLabel').textContent=cursor.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+ let first=new Date(cursor.getFullYear(),cursor.getMonth(),1), offset=(first.getDay()+6)%7, days=new Date(cursor.getFullYear(),cursor.getMonth()+1,0).getDate();
+ let html=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].map(x=>`<div class="dow">${x}</div>`).join('');
+ for(let i=0;i<offset;i++)html+='<div class="day blank"></div>';
+ for(let n=1;n<=days;n++){
+  let d=new Date(cursor.getFullYear(),cursor.getMonth(),n),k=key(d),r=data[k],c=calc(r,k),weekend=d.getDay()===0||d.getDay()===6;
+  html+=`<button class="day ${weekend?'weekend':''} ${r&&r.worked?'work':''} ${key(selected)===k?'selected':''}" data-day="${k}">
+   <span class="num">${n}</span>${weekend&&r&&r.worked?'<span class="bonus">+¥2k</span>':''}
+   ${r&&r.worked?`<span class="shift">${r.shift==='custom'?'Personalizado':r.shift+'º turno'}</span><span class="hrs">${c.hours.toFixed(2).replace('.',',')}h líq.</span><span class="amount">${money(c.total)}</span>`:''}
+  </button>`;
+ }
+ $('calendar').innerHTML=html;
+ document.querySelectorAll('[data-day]').forEach(b=>b.addEventListener('click',()=>{selected=new Date(b.dataset.day+'T12:00:00');loadEditor();renderCalendar()}));
+}
+function loadEditor(){
+ let k=key(selected),r=data[k]; $('dateLabel').value=fmtDate(selected); $('editorTitle').textContent='Editar dia selecionado';
+ $('worked').value=r&&r.worked?'yes':'no'; $('shift').value=r?.shift||'1'; $('start').value=r?.start||'08:00'; $('end').value=r?.end||'16:45';
+ $('break').value=r?.break??DEF_BREAK; $('rate').value=r?.rate??1670; $('premium').value=r?.premium??25; $('weekendBonus').value=r?.weekendBonus??2000;
+ $('breakNight').checked=!!(r?.breakNight);
+ updateEstimate();
+}
+function updateEstimate(){
+ let yes=$('worked').value==='yes',k=key(selected);
+ let r={worked:yes,shift:$('shift').value,start:$('start').value,end:$('end').value,break:$('break').value,breakNight:$('breakNight').checked,rate:$('rate').value,premium:$('premium').value,weekendBonus:$('weekendBonus').value};
+ let c=calc(r,k);
+ $('estimate').innerHTML=yes?`Estimativa do dia: <b style="color:var(--green)">${money(c.total)}</b><br><span class="small">${c.gross.toFixed(2)}h brutas − ${c.brk}min kyūkei = <b>${c.hours.toFixed(2)}h líq.</b> · base ${money(c.base)} · adicional ${money(c.night)} · ajuda ${money(c.bonus)}</span>`:'Dia marcado como folga. Nenhum valor será contabilizado.';
+}
+function renderSummary(){
+ let y=cursor.getFullYear(),m=cursor.getMonth(),rows=[],tot={hours:0,base:0,night:0,bonus:0,total:0},count=0;
+ Object.keys(data).sort().forEach(k=>{let d=new Date(k+'T12:00:00');if(d.getFullYear()!==y||d.getMonth()!==m||!data[k].worked)return;
+ let r=data[k],c=calc(r,k);count++;['hours','base','night','bonus','total'].forEach(x=>tot[x]+=c[x]);
+ rows.push(`<tr><td>${d.toLocaleDateString('pt-BR')}</td><td>${r.shift==='custom'?'Personalizado':r.shift+'º turno'}</td><td>${c.hours.toFixed(2)} h</td><td>${money(c.base)}</td><td>${money(c.night)}</td><td>${money(c.bonus)}</td><td><b>${money(c.total)}</b></td></tr>`);
+ });
+ $('monthTotal').textContent=money(tot.total);$('monthHint').textContent=count+' dia(s) trabalhado(s)';
+ $('monthHours').textContent=tot.hours.toFixed(1)+'h';$('nightTotal').textContent=money(tot.night);$('bonusTotal').textContent=money(tot.bonus);
+ $('details').innerHTML=rows.join('');$('empty').style.display=rows.length?'none':'block';
+}
+function render(){renderCalendar();renderSummary();loadEditor()}
+$('prev').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()-1,1);render()};
+$('next').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1);render()};
+$('shift').onchange=()=>{let v=$('shift').value;if(SHIFTS[v]){$('start').value=SHIFTS[v].start;$('end').value=SHIFTS[v].end;$('break').value=DEF_BREAK;$('breakNight').checked=(v==='3')}updateEstimate()};
+['worked','start','end','break','breakNight','rate','premium','weekendBonus'].forEach(id=>$(id).addEventListener('input',updateEstimate));
+$('breakNight').addEventListener('change',updateEstimate);
+$('save').onclick=()=>{let k=key(selected);if($('worked').value==='no'){delete data[k]}else{data[k]={worked:true,shift:$('shift').value,start:$('start').value,end:$('end').value,break:Number($('break').value)||0,breakNight:$('breakNight').checked,rate:Number($('rate').value)||0,premium:Number($('premium').value)||0,weekendBonus:Number($('weekendBonus').value)||0}}saveLocal();render()};
+$('clear').onclick=()=>{delete data[key(selected)];saveLocal();render()};
+render();
+</script>
+</body>
+</html>
