@@ -37,7 +37,12 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin:18px 0}
 <div class="wrap">
 <header class="top">
  <div><h1>Furukawa <span style="color:var(--green)">•</span> Controle de Trabalho</h1><div class="sub">Empreiteira Just · Calendário, horas e previsão salarial</div></div>
- <div class="tag">Dados salvos neste aparelho</div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+  <button id="dlCsv" title="Baixar o resumo do mês em CSV (abre no Excel/Sheets)">⬇️ Baixar CSV do mês</button>
+  <button id="dlBackup" title="Salvar um backup de todos os registros">💾 Backup</button>
+  <button id="imp" title="Restaurar um backup salvo">📂 Importar</button>
+  <input id="impFile" type="file" accept="application/json,.json" style="display:none">
+ </div>
 </header>
 <section class="cards">
  <div class="card"><div class="kicker">Total previsto no mês</div><div class="metric" id="monthTotal">¥0</div><div class="small" id="monthHint">0 dias trabalhados</div></div>
@@ -154,6 +159,42 @@ function renderSummary(){
  $('details').innerHTML=rows.join('');$('empty').style.display=rows.length?'none':'block';
 }
 function render(){renderCalendar();renderSummary();loadEditor()}
+// ---- Download / backup ----
+function download(name,content,type){
+ let blob=new Blob([content],{type:type||'text/plain;charset=utf-8'});
+ let url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=name;document.body.appendChild(a);a.click();
+ setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},0);
+}
+function monthCsv(){
+ let y=cursor.getFullYear(),m=cursor.getMonth();
+ let lines=['Data;Dia;Turno;Entrada;Saida;Kyukei(min);Horas liquidas;Base;Adicional noturno;Ajuda;Total'];
+ let tot={hours:0,base:0,night:0,bonus:0,total:0},count=0;
+ Object.keys(data).sort().forEach(k=>{let d=new Date(k+'T12:00:00');if(d.getFullYear()!==y||d.getMonth()!==m||!data[k].worked)return;
+  let r=data[k],c=calc(r,k);count++;['hours','base','night','bonus','total'].forEach(x=>tot[x]+=c[x]);
+  let dow=d.toLocaleDateString('pt-BR',{weekday:'short'});
+  let turno=r.shift==='custom'?'Personalizado':r.shift+'º turno';
+  lines.push([d.toLocaleDateString('pt-BR'),dow,turno,r.start,r.end,c.brk,c.hours.toFixed(2).replace('.',','),Math.round(c.base),Math.round(c.night),Math.round(c.bonus),Math.round(c.total)].join(';'));
+ });
+ lines.push('');
+ lines.push(['TOTAIS','','','','','',tot.hours.toFixed(2).replace('.',','),Math.round(tot.base),Math.round(tot.night),Math.round(tot.bonus),Math.round(tot.total)].join(';'));
+ lines.push('Dias trabalhados;'+count);
+ return '﻿'+lines.join('\r\n');
+}
+$('dlCsv').onclick=()=>{
+ let name='furukawa_'+cursor.getFullYear()+'-'+pad(cursor.getMonth()+1)+'.csv';
+ download(name,monthCsv(),'text/csv;charset=utf-8');
+};
+$('dlBackup').onclick=()=>{
+ let name='furukawa_backup_'+key(new Date())+'.json';
+ download(name,JSON.stringify(data,null,2),'application/json');
+};
+$('imp').onclick=()=>$('impFile').click();
+$('impFile').onchange=e=>{
+ let f=e.target.files[0];if(!f)return;let rd=new FileReader();
+ rd.onload=()=>{try{let obj=JSON.parse(rd.result);if(obj&&typeof obj==='object'){if(confirm('Importar este backup? Os registros atuais serão substituídos.')){data=obj;saveLocal();render();alert('Backup importado com sucesso.')}}else{alert('Arquivo inválido.')}}catch(err){alert('Não foi possível ler o arquivo.')}};
+ rd.readAsText(f);e.target.value='';
+};
 $('prev').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()-1,1);render()};
 $('next').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1);render()};
 $('shift').onchange=()=>{let v=$('shift').value;if(SHIFTS[v]){$('start').value=SHIFTS[v].start;$('end').value=SHIFTS[v].end;$('break').value=DEF_BREAK;$('breakNight').checked=(v==='3')}updateEstimate()};
