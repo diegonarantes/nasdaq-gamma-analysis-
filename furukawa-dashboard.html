@@ -10,7 +10,7 @@
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#0b1220,#111d30);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 .wrap{max-width:1180px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
 h1{font-size:clamp(23px,4vw,34px);margin:0}.sub{color:var(--muted);margin-top:4px}.tag{border:1px solid #34506d;border-radius:999px;padding:7px 12px;color:#b9d6f7;font-size:13px}
-.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin:16px 0}
 .card,.panel{background:rgba(18,29,46,.95);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 8px 28px #0002}
 .kicker{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.metric{font-size:clamp(21px,3vw,29px);font-weight:750;margin-top:5px}.small{font-size:12px;color:var(--muted)}
 .layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(290px,.85fr);gap:14px}
@@ -68,6 +68,7 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin:18px 0}
  <div class="card"><div class="kicker">Total previsto no mês</div><div class="metric" id="monthTotal">¥0</div><div class="small" id="monthHint">0 dias trabalhados</div></div>
  <div class="card"><div class="kicker">Horas líquidas no mês</div><div class="metric" id="monthHours">0h</div><div class="small">Já descontando o kyūkei</div></div>
  <div class="card"><div class="kicker">Adicional noturno</div><div class="metric" id="nightTotal">¥0</div><div class="small">22:00 até 05:00 · +25%</div></div>
+ <div class="card"><div class="kicker">Horas extras acumuladas</div><div class="metric" id="otHours">0h</div><div class="small" id="otHint">Acima de 8h/dia · total geral: 0h</div></div>
  <div class="card"><div class="kicker">Ajuda fim de semana</div><div class="metric" id="bonusTotal">¥0</div><div class="small">¥2.000 por sábado/domingo trabalhado</div></div>
 </section>
 <div class="layout">
@@ -137,7 +138,7 @@ function calc(rec,dateKey){
  let rate=Number(rec.rate)||0, prem=Number(rec.premium)||0;
  let base=net/60*rate, nightPay=night/60*rate*prem/100;
  let d=new Date(dateKey+'T12:00:00'), bonus=(d.getDay()===0||d.getDay()===6)?Number(rec.weekendBonus||0):0;
- return {hours:net/60,base,night:nightPay,bonus,total:base+nightPay+bonus,gross:gross/60,brk:br};
+ return {hours:net/60,base,night:nightPay,bonus,total:base+nightPay+bonus,gross:gross/60,brk:br,otHours:Math.max(0,net/60-8)};
 }
 function saveLocal(){localStorage.setItem(KEY,JSON.stringify(data))}
 function renderCalendar(){
@@ -174,8 +175,11 @@ function renderSummary(){
  let r=data[k],c=calc(r,k);count++;['hours','base','night','bonus','total'].forEach(x=>tot[x]+=c[x]);
  rows.push(`<tr><td>${d.toLocaleDateString('pt-BR')}</td><td>${r.shift==='custom'?'Personalizado':r.shift+'º turno'}</td><td>${c.hours.toFixed(2)} h</td><td>${money(c.base)}</td><td>${money(c.night)}</td><td>${money(c.bonus)}</td><td><b>${money(c.total)}</b></td></tr>`);
  });
+ let otMonth=0;Object.keys(data).forEach(k=>{let d=new Date(k+'T12:00:00');if(d.getFullYear()===y&&d.getMonth()===m&&data[k]&&data[k].worked)otMonth+=calc(data[k],k).otHours});
+ let otAll=0;Object.keys(data).forEach(k=>{if(data[k]&&data[k].worked)otAll+=calc(data[k],k).otHours});
  $('monthTotal').textContent=money(tot.total);$('monthHint').textContent=count+' dia(s) trabalhado(s)';
  $('monthHours').textContent=tot.hours.toFixed(1)+'h';$('nightTotal').textContent=money(tot.night);$('bonusTotal').textContent=money(tot.bonus);
+ $('otHours').textContent=otMonth.toFixed(1).replace('.',',')+'h';$('otHint').textContent='Acima de 8h/dia · total geral: '+otAll.toFixed(1).replace('.',',')+'h';
  $('details').innerHTML=rows.join('');$('empty').style.display=rows.length?'none':'block';
 }
 function render(){renderCalendar();renderSummary();loadEditor()}
