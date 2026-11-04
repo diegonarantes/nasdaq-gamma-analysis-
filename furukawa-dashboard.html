@@ -139,7 +139,7 @@ function calc(rec,dateKey){
  night=Math.min(night,net);
  let rate=Number(rec.rate)||0, prem=Number(rec.premium)||0;
  let extraMin=Math.max(0,Number(rec.otMin)||0);
- let base=net/60*rate, otPay=extraMin/60*rate, nightPay=night/60*rate*prem/100;
+ let base=net/60*rate, otPay=extraMin/60*rate*1.25, nightPay=night/60*rate*prem/100;
  let d=new Date(dateKey+'T12:00:00'), bonus=(d.getDay()===0||d.getDay()===6)?Number(rec.weekendBonus||0):0;
  let totalWorked=net+extraMin;
  return {hours:totalWorked/60,base,ot:otPay,night:nightPay,bonus,total:base+otPay+nightPay+bonus,gross:gross/60,brk:br,otHours:extraMin/60+Math.max(0,net/60-8)};
@@ -174,7 +174,7 @@ function updateEstimate(){
  let r={worked:yes,shift:$('shift').value,start:$('start').value,end:$('end').value,break:$('break').value,breakNight:$('breakNight').checked,otMin:otMin,rate:$('rate').value,premium:$('premium').value,weekendBonus:$('weekendBonus').value};
  let c=calc(r,k);
  let netH=c.hours-otMin/60;
- $('estimate').innerHTML=yes?`Estimativa do dia: <b style="color:var(--green)">${money(c.total)}</b><br><span class="small">${netH.toFixed(2)}h normais${otMin?` + ${(otMin/60).toFixed(2)}h extra`:''} = <b>${c.hours.toFixed(2)}h</b> · base ${money(c.base)}${c.ot?` · extra ${money(c.ot)}`:''} · adic. ${money(c.night)} · ajuda ${money(c.bonus)}</span>`:'Dia marcado como folga. Nenhum valor será contabilizado.';
+ $('estimate').innerHTML=yes?`Estimativa do dia: <b style="color:var(--green)">${money(c.total)}</b><br><span class="small">${netH.toFixed(2)}h normais${otMin?` + ${(otMin/60).toFixed(2)}h extra`:''} = <b>${c.hours.toFixed(2)}h</b> · base ${money(c.base)}${c.ot?` · extra +25% ${money(c.ot)}`:''} · adic. ${money(c.night)} · ajuda ${money(c.bonus)}</span>`:'Dia marcado como folga. Nenhum valor será contabilizado.';
 }
 function renderSummary(){
  let y=cursor.getFullYear(),m=cursor.getMonth(),rows=[],tot={hours:0,base:0,ot:0,night:0,bonus:0,total:0},count=0;
