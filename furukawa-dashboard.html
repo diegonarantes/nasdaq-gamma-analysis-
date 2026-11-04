@@ -31,9 +31,28 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 footer{color:var(--muted);font-size:12px;text-align:center;margin:18px 0}
 @media(max-width:850px){.cards{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}}
 @media(max-width:420px){.wrap{padding:12px}.day{min-height:70px;padding:5px}.day .shift{font-size:10px}.day .amount{font-size:10px}.cards{gap:8px}.card{padding:12px}}
+.gate{position:fixed;inset:0;background:linear-gradient(145deg,#0b1220,#111d30);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px}
+.gate .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:360px;width:100%;box-shadow:0 10px 40px #0006}
+.gate h2{margin:0 0 4px;font-size:22px}.gate .gsub{color:var(--muted);font-size:13px;margin:0 0 14px}
+.gate input{width:100%;margin:6px 0;padding:11px}
+.gate .gbtn{width:100%;margin-top:12px;background:#236d5a;border-color:#329a7d;font-weight:600}
+.gate .err{color:var(--red);font-size:13px;min-height:18px;margin-top:8px}
+.gate .hint{color:var(--muted);font-size:11px;margin-top:14px;text-align:center;line-height:1.5}
 </style>
 </head>
 <body>
+<div id="authGate" class="gate" style="display:none">
+ <div class="box">
+  <h2 id="gateTitle">Acesso</h2>
+  <p class="gsub" id="gateSub"></p>
+  <input id="gUser" placeholder="Usuário" autocomplete="username">
+  <input id="gPass" type="password" placeholder="Senha" autocomplete="current-password">
+  <input id="gPass2" type="password" placeholder="Confirmar senha" style="display:none" autocomplete="new-password">
+  <button class="gbtn" id="gBtn">Entrar</button>
+  <div class="err" id="gErr"></div>
+  <div class="hint" id="gHint"></div>
+ </div>
+</div>
 <div class="wrap">
 <header class="top">
  <div><h1>Furukawa <span style="color:var(--green)">•</span> Controle de Trabalho</h1><div class="sub">Empreiteira Just · Calendário, horas e previsão salarial</div></div>
@@ -41,6 +60,7 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin:18px 0}
   <button id="dlCsv" title="Baixar o resumo do mês em CSV (abre no Excel/Sheets)">⬇️ Baixar CSV do mês</button>
   <button id="dlBackup" title="Salvar um backup de todos os registros">💾 Backup</button>
   <button id="imp" title="Restaurar um backup salvo">📂 Importar</button>
+  <button id="logout" title="Bloquear o painel">🔒 Sair</button>
   <input id="impFile" type="file" accept="application/json,.json" style="display:none">
  </div>
 </header>
@@ -189,6 +209,30 @@ $('dlBackup').onclick=()=>{
  let name='furukawa_backup_'+key(new Date())+'.json';
  download(name,JSON.stringify(data,null,2),'application/json');
 };
+// ---- Login / cadeado (client-side, por aparelho) ----
+const AUTHK='furukawa_auth_v1';
+async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+function getCred(){try{return JSON.parse(localStorage.getItem(AUTHK)||'null')}catch(e){return null}}
+function sessionOk(){try{return sessionStorage.getItem(AUTHK+'_ok')==='1'}catch(e){return false}}
+function showGate(){
+ const cred=getCred(),g=$('authGate');g.style.display='flex';$('gErr').textContent='';$('gPass').value='';$('gPass2').value='';
+ if(!cred){$('gateTitle').textContent='Criar acesso';$('gateSub').textContent='Defina um usuário e uma senha para proteger seu painel neste aparelho.';$('gPass2').style.display='block';$('gBtn').textContent='Criar e entrar';$('gUser').value='';$('gHint').textContent='A senha fica guardada só neste aparelho, criptografada. Não há como recuperar se você esquecer.'}
+ else{$('gateTitle').textContent='Entrar';$('gateSub').textContent='Digite seu usuário e senha.';$('gPass2').style.display='none';$('gBtn').textContent='Entrar';$('gUser').value=cred.u||'';$('gHint').innerHTML='Esqueceu a senha? <a href="#" id="gReset" style="color:var(--blue)">Redefinir acesso</a> (apaga só o login; os registros ficam).'}
+ setTimeout(()=>$('gUser').focus(),50);
+}
+async function gateSubmit(){
+ const cred=getCred(),u=$('gUser').value.trim(),p=$('gPass').value;$('gErr').textContent='';
+ if(!u||!p){$('gErr').textContent='Preencha usuário e senha.';return}
+ if(!cred){const p2=$('gPass2').value;if(p.length<4){$('gErr').textContent='Senha muito curta (mínimo 4 caracteres).';return}if(p!==p2){$('gErr').textContent='As senhas não conferem.';return}const h=await sha(u+'::'+p);localStorage.setItem(AUTHK,JSON.stringify({u,h}));try{sessionStorage.setItem(AUTHK+'_ok','1')}catch(e){}$('authGate').style.display='none'}
+ else{const h=await sha(u+'::'+p);if(u===cred.u&&h===cred.h){try{sessionStorage.setItem(AUTHK+'_ok','1')}catch(e){}$('authGate').style.display='none'}else{$('gErr').textContent='Usuário ou senha incorretos.'}}
+}
+$('gBtn').onclick=gateSubmit;
+$('gPass').addEventListener('keydown',e=>{if(e.key==='Enter')gateSubmit()});
+$('gPass2').addEventListener('keydown',e=>{if(e.key==='Enter')gateSubmit()});
+$('authGate').addEventListener('click',e=>{if(e.target.id==='gReset'){e.preventDefault();if(confirm('Redefinir o acesso? Isso apaga usuário e senha (seus registros de trabalho continuam salvos).')){localStorage.removeItem(AUTHK);showGate()}}});
+$('logout').onclick=()=>{try{sessionStorage.removeItem(AUTHK+'_ok')}catch(e){}showGate()};
+if(!sessionOk())showGate();
+
 $('imp').onclick=()=>$('impFile').click();
 $('impFile').onchange=e=>{
  let f=e.target.files[0];if(!f)return;let rd=new FileReader();
