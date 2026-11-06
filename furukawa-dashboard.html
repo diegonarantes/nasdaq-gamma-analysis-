@@ -69,7 +69,8 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin:18px 0}
  <div class="card"><div class="kicker">Horas líquidas no mês</div><div class="metric" id="monthHours">0h</div><div class="small">Já descontando o kyūkei</div></div>
  <div class="card"><div class="kicker">Adicional noturno</div><div class="metric" id="nightTotal">¥0</div><div class="small">22:00 até 05:00 · +25%</div></div>
  <div class="card"><div class="kicker">Horas extras acumuladas</div><div class="metric" id="otHours">0h</div><div class="small" id="otHint">Acima de 8h/dia · total geral: 0h</div></div>
- <div class="card"><div class="kicker">Ajuda fim de semana</div><div class="metric" id="bonusTotal">¥0</div><div class="small">¥2.000 por sábado/domingo trabalhado</div></div>
+ <div class="card"><div class="kicker">Adicional fim de semana</div><div class="metric" id="bonusTotal">¥0</div><div class="small">Dom +35% · Sáb +25% (por hora)</div></div>
+ <div class="card"><div class="kicker">Ajuda transporte</div><div class="metric" id="transpTotal">¥0</div><div class="small">¥200 por dia trabalhado (+2h)</div></div>
 </section>
 <div class="layout">
  <section class="panel">
@@ -94,18 +95,18 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin:18px 0}
   <div class="check"><input type="checkbox" id="breakNight"><label for="breakNight" style="margin:0;color:var(--muted)">Kyūkei cai dentro da faixa noturna (22h–5h) — desconta também do adicional</label></div>
   <div class="row"><div class="field"><label>Hora extra — horas</label><input id="otH" type="number" min="0" step="1" value="0"></div><div class="field"><label>Hora extra — minutos</label><input id="otM" type="number" min="0" max="59" step="1" value="0"></div></div>
   <div class="small" style="margin-top:-4px">Minutos extras feitos além da jornada normal do turno. Ex.: 0h e 45min = 45 minutos de extra (+25%).</div>
-  <div class="row"><div class="field"><label>Adicional noturno (%)</label><input id="premium" type="number" min="0" step="1" value="25"></div><div class="field"><label>Ajuda sábado/domingo (¥)</label><input id="weekendBonus" type="number" min="0" step="100" value="2000"></div></div>
+  <div class="row"><div class="field"><label>Adicional noturno (%)</label><input id="premium" type="number" min="0" step="1" value="25"></div><div class="field"><label>Ajuda transporte (¥/dia, +2h)</label><input id="transp" type="number" min="0" step="50" value="200"></div></div>
   <div class="info" id="estimate">Estimativa do dia: ¥0</div>
   <div class="actions"><button class="primary" id="save">Salvar dia</button><button id="clear">Limpar dia</button></div>
   <hr>
   <h2>Parâmetros e observações</h2>
   <div class="small">Turnos (kyūkei já descontado): 1º 08:00–16:45 = <b>7h45</b>; 2º 16:35–23:35 = <b>6h15</b>; 3º 23:25–08:10 = <b>7h45</b>; 4º 20:00–04:45 = <b>7h45</b>. O adicional noturno (+25%) incide só sobre as horas entre 22:00 e 05:00; a virada da meia-noite já é considerada.</div>
-  <div class="info">Conforme o contrato (Just Logística / Furukawa Electric): salário total ¥1.670/h, hora extra ¥2.087,5/h (+25%, após 8h/dia), adicional noturno ¥417,5/h (22:00–05:00). O valor exibido é bruto estimado, antes de impostos/descontos de folha.</div>
+  <div class="info">Conforme o contrato (Just Logística / Furukawa Electric): salário total ¥1.670/h; hora extra ¥2.087,5/h (+25%, após 8h/dia); adicional noturno ¥417,5/h (22:00–05:00); domingo/folga legal ¥2.254,5/h (+35%); sábado/folga ¥2.087,5/h (+25%); ajuda de transporte ¥200/dia (quando trabalha +2h). O valor exibido é bruto estimado, antes de impostos/descontos de folha.</div>
  </aside>
 </div>
 <section class="panel" style="margin-top:14px">
  <h2>Resumo por dia do mês</h2>
- <div class="tablewrap"><table><thead><tr><th>Data</th><th>Turno</th><th>Horas</th><th>Base</th><th>Hora extra</th><th>Adic. noturno</th><th>Ajuda</th><th>Total</th></tr></thead><tbody id="details"></tbody></table></div>
+ <div class="tablewrap"><table><thead><tr><th>Data</th><th>Turno</th><th>Horas</th><th>Base</th><th>Hora extra</th><th>Adic. noturno</th><th>FDS/Feriado</th><th>Transp.</th><th>Total</th></tr></thead><tbody id="details"></tbody></table></div>
  <div class="small" id="empty">Nenhum dia de trabalho registrado neste mês.</div>
 </section>
 <footer>Os registros ficam salvos localmente no navegador deste aparelho (localStorage). Use o mesmo navegador para consultar depois.</footer>
@@ -127,23 +128,25 @@ const fmtDate=d=>d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',mont
 function mins(t){let [h,m]=t.split(':').map(Number);return h*60+m}
 function overlap(a,b,c,d){return Math.max(0,Math.min(b,d)-Math.max(a,c))}
 function calc(rec,dateKey){
- if(!rec||!rec.worked)return {hours:0,base:0,ot:0,night:0,bonus:0,total:0,gross:0,brk:0,otHours:0};
+ if(!rec||!rec.worked)return {hours:0,base:0,ot:0,night:0,wk:0,transp:0,total:0,gross:0,brk:0,otHours:0,dayKind:'normal'};
  let s=mins(rec.start),e=mins(rec.end); if(e<=s)e+=1440;
  let gross=e-s, br=Math.max(0,Math.min(600,Number(rec.break)||0)), net=Math.max(0,gross-br);
- // horas noturnas brutas (22:00–05:00), considerando virada do dia
- let night=overlap(s,e,1320,1740)+overlap(s,e,1440,1740)+overlap(s,e,0,300);
- night=overlap(s,e,1320,1740)+overlap(s,e,0,300); // 22:00->05:00 (dia 0) + 00:00->05:00 (dia seguinte via +1440 já embutido quando e>1440)
- // forma robusta: soma faixa noturna em janela de 2 dias
- night=0; for(let dd=0; dd<=1; dd++){night+=overlap(s,e,dd*1440+1320,dd*1440+1740)}
- // se o kyūkei ocorre dentro da faixa noturna, abate do noturno também
+ // horas noturnas (22:00–05:00) em janela de 2 dias, considerando virada
+ let night=0; for(let dd=0; dd<=1; dd++){night+=overlap(s,e,dd*1440+1320,dd*1440+1740)}
  if(rec.breakNight){night=Math.max(0,night-br)}
  night=Math.min(night,net);
  let rate=Number(rec.rate)||0, prem=Number(rec.premium)||0;
  let extraMin=Math.max(0,Number(rec.otMin)||0);
- let base=net/60*rate, otPay=extraMin/60*rate*1.25, nightPay=night/60*rate*prem/100;
- let d=new Date(dateKey+'T12:00:00'), bonus=(d.getDay()===0||d.getDay()===6)?Number(rec.weekendBonus||0):0;
+ let d=new Date(dateKey+'T12:00:00'), wd=d.getDay();
+ // adicional de folga por hora: domingo (法定休日) +35%, sábado (法定外休日) +25%
+ let wkPct=wd===0?35:(wd===6?25:0), dayKind=wd===0?'dom':(wd===6?'sab':'normal');
+ let base=net/60*rate;
+ let wk=net/60*rate*wkPct/100;
+ let otPay=extraMin/60*rate*1.25;
+ let nightPay=night/60*rate*prem/100;
  let totalWorked=net+extraMin;
- return {hours:totalWorked/60,base,ot:otPay,night:nightPay,bonus,total:base+otPay+nightPay+bonus,gross:gross/60,brk:br,otHours:extraMin/60+Math.max(0,net/60-8)};
+ let transp=(totalWorked>120)?(Number(rec.transp)||0):0;
+ return {hours:totalWorked/60,base,ot:otPay,night:nightPay,wk,transp,total:base+wk+otPay+nightPay+transp,gross:gross/60,brk:br,otHours:extraMin/60+Math.max(0,net/60-8),dayKind};
 }
 function saveLocal(){localStorage.setItem(KEY,JSON.stringify(data))}
 function renderCalendar(){
@@ -164,7 +167,7 @@ function renderCalendar(){
 function loadEditor(){
  let k=key(selected),r=data[k]; $('dateLabel').value=fmtDate(selected); $('editorTitle').textContent='Editar dia selecionado';
  $('worked').value=r&&r.worked?'yes':'no'; $('shift').value=r?.shift||'1'; $('start').value=r?.start||'08:00'; $('end').value=r?.end||'16:45';
- $('break').value=r?.break??DEF_BREAK; $('rate').value=r?.rate??1670; $('premium').value=r?.premium??25; $('weekendBonus').value=r?.weekendBonus??2000;
+ $('break').value=r?.break??DEF_BREAK; $('rate').value=r?.rate??1670; $('premium').value=r?.premium??25; $('transp').value=r?.transp??200;
  $('breakNight').checked=!!(r?.breakNight);
  let om=Number(r?.otMin)||0; $('otH').value=Math.floor(om/60); $('otM').value=om%60;
  updateEstimate();
@@ -172,21 +175,22 @@ function loadEditor(){
 function updateEstimate(){
  let yes=$('worked').value==='yes',k=key(selected);
  let otMin=(Number($('otH').value)||0)*60+(Number($('otM').value)||0);
- let r={worked:yes,shift:$('shift').value,start:$('start').value,end:$('end').value,break:$('break').value,breakNight:$('breakNight').checked,otMin:otMin,rate:$('rate').value,premium:$('premium').value,weekendBonus:$('weekendBonus').value};
+ let r={worked:yes,shift:$('shift').value,start:$('start').value,end:$('end').value,break:$('break').value,breakNight:$('breakNight').checked,otMin:otMin,rate:$('rate').value,premium:$('premium').value,transp:$('transp').value};
  let c=calc(r,k);
  let netH=c.hours-otMin/60;
- $('estimate').innerHTML=yes?`Estimativa do dia: <b style="color:var(--green)">${money(c.total)}</b><br><span class="small">${netH.toFixed(2)}h normais${otMin?` + ${(otMin/60).toFixed(2)}h extra`:''} = <b>${c.hours.toFixed(2)}h</b> · base ${money(c.base)}${c.ot?` · extra +25% ${money(c.ot)}`:''} · adic. ${money(c.night)} · ajuda ${money(c.bonus)}</span>`:'Dia marcado como folga. Nenhum valor será contabilizado.';
+ let kindTxt=c.dayKind==='dom'?` · domingo +35% ${money(c.wk)}`:(c.dayKind==='sab'?` · sábado +25% ${money(c.wk)}`:'');
+ $('estimate').innerHTML=yes?`Estimativa do dia: <b style="color:var(--green)">${money(c.total)}</b><br><span class="small">${netH.toFixed(2)}h normais${otMin?` + ${(otMin/60).toFixed(2)}h extra`:''} = <b>${c.hours.toFixed(2)}h</b> · base ${money(c.base)}${c.ot?` · extra +25% ${money(c.ot)}`:''}${c.night?` · noturno ${money(c.night)}`:''}${kindTxt}${c.transp?` · transp. ${money(c.transp)}`:''}</span>`:'Dia marcado como folga. Nenhum valor será contabilizado.';
 }
 function renderSummary(){
- let y=cursor.getFullYear(),m=cursor.getMonth(),rows=[],tot={hours:0,base:0,ot:0,night:0,bonus:0,total:0},count=0;
+ let y=cursor.getFullYear(),m=cursor.getMonth(),rows=[],tot={hours:0,base:0,ot:0,night:0,wk:0,transp:0,total:0},count=0;
  Object.keys(data).sort().forEach(k=>{let d=new Date(k+'T12:00:00');if(d.getFullYear()!==y||d.getMonth()!==m||!data[k].worked)return;
- let r=data[k],c=calc(r,k);count++;['hours','base','ot','night','bonus','total'].forEach(x=>tot[x]+=c[x]);
- rows.push(`<tr><td>${d.toLocaleDateString('pt-BR')}</td><td>${r.shift==='custom'?'Personalizado':r.shift+'º turno'}</td><td>${c.hours.toFixed(2)} h</td><td>${money(c.base)}</td><td>${money(c.ot)}</td><td>${money(c.night)}</td><td>${money(c.bonus)}</td><td><b>${money(c.total)}</b></td></tr>`);
+ let r=data[k],c=calc(r,k);count++;['hours','base','ot','night','wk','transp','total'].forEach(x=>tot[x]+=c[x]);
+ rows.push(`<tr><td>${d.toLocaleDateString('pt-BR')}</td><td>${r.shift==='custom'?'Personalizado':r.shift+'º turno'}</td><td>${c.hours.toFixed(2)} h</td><td>${money(c.base)}</td><td>${money(c.ot)}</td><td>${money(c.night)}</td><td>${money(c.wk)}</td><td>${money(c.transp)}</td><td><b>${money(c.total)}</b></td></tr>`);
  });
  let otMonth=0;Object.keys(data).forEach(k=>{let d=new Date(k+'T12:00:00');if(d.getFullYear()===y&&d.getMonth()===m&&data[k]&&data[k].worked)otMonth+=calc(data[k],k).otHours});
  let otAll=0;Object.keys(data).forEach(k=>{if(data[k]&&data[k].worked)otAll+=calc(data[k],k).otHours});
  $('monthTotal').textContent=money(tot.total);$('monthHint').textContent=count+' dia(s) trabalhado(s)';
- $('monthHours').textContent=tot.hours.toFixed(1)+'h';$('nightTotal').textContent=money(tot.night);$('bonusTotal').textContent=money(tot.bonus);
+ $('monthHours').textContent=tot.hours.toFixed(1)+'h';$('nightTotal').textContent=money(tot.night);$('bonusTotal').textContent=money(tot.wk);$('transpTotal').textContent=money(tot.transp);
  $('otHours').textContent=otMonth.toFixed(1).replace('.',',')+'h';$('otHint').textContent='Acima de 8h/dia · total geral: '+otAll.toFixed(1).replace('.',',')+'h';
  $('details').innerHTML=rows.join('');$('empty').style.display=rows.length?'none':'block';
 }
@@ -200,16 +204,16 @@ function download(name,content,type){
 }
 function monthCsv(){
  let y=cursor.getFullYear(),m=cursor.getMonth();
- let lines=['Data;Dia;Turno;Entrada;Saida;Kyukei(min);Horas totais;Horas extras;Base;Hora extra (¥);Adicional noturno;Ajuda;Total'];
- let tot={hours:0,base:0,ot:0,otHours:0,night:0,bonus:0,total:0},count=0;
+ let lines=['Data;Dia;Turno;Entrada;Saida;Kyukei(min);Horas totais;Horas extras;Base;Hora extra (¥);Adicional noturno;FDS/Feriado;Transporte;Total'];
+ let tot={hours:0,base:0,ot:0,otHours:0,night:0,wk:0,transp:0,total:0},count=0;
  Object.keys(data).sort().forEach(k=>{let d=new Date(k+'T12:00:00');if(d.getFullYear()!==y||d.getMonth()!==m||!data[k].worked)return;
-  let r=data[k],c=calc(r,k);count++;['hours','base','ot','otHours','night','bonus','total'].forEach(x=>tot[x]+=c[x]);
+  let r=data[k],c=calc(r,k);count++;['hours','base','ot','otHours','night','wk','transp','total'].forEach(x=>tot[x]+=c[x]);
   let dow=d.toLocaleDateString('pt-BR',{weekday:'short'});
   let turno=r.shift==='custom'?'Personalizado':r.shift+'º turno';
-  lines.push([d.toLocaleDateString('pt-BR'),dow,turno,r.start,r.end,c.brk,c.hours.toFixed(2).replace('.',','),c.otHours.toFixed(2).replace('.',','),Math.round(c.base),Math.round(c.ot),Math.round(c.night),Math.round(c.bonus),Math.round(c.total)].join(';'));
+  lines.push([d.toLocaleDateString('pt-BR'),dow,turno,r.start,r.end,c.brk,c.hours.toFixed(2).replace('.',','),c.otHours.toFixed(2).replace('.',','),Math.round(c.base),Math.round(c.ot),Math.round(c.night),Math.round(c.wk),Math.round(c.transp),Math.round(c.total)].join(';'));
  });
  lines.push('');
- lines.push(['TOTAIS','','','','','',tot.hours.toFixed(2).replace('.',','),tot.otHours.toFixed(2).replace('.',','),Math.round(tot.base),Math.round(tot.ot),Math.round(tot.night),Math.round(tot.bonus),Math.round(tot.total)].join(';'));
+ lines.push(['TOTAIS','','','','','',tot.hours.toFixed(2).replace('.',','),tot.otHours.toFixed(2).replace('.',','),Math.round(tot.base),Math.round(tot.ot),Math.round(tot.night),Math.round(tot.wk),Math.round(tot.transp),Math.round(tot.total)].join(';'));
  lines.push('Dias trabalhados;'+count);
  return '﻿'+lines.join('\r\n');
 }
@@ -254,9 +258,9 @@ $('impFile').onchange=e=>{
 $('prev').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()-1,1);render()};
 $('next').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1);render()};
 $('shift').onchange=()=>{let v=$('shift').value;if(SHIFTS[v]){$('start').value=SHIFTS[v].start;$('end').value=SHIFTS[v].end;$('break').value=SHIFTS[v].brk;$('breakNight').checked=(v==='3'||v==='4')}updateEstimate()};
-['worked','start','end','break','breakNight','otH','otM','rate','premium','weekendBonus'].forEach(id=>$(id).addEventListener('input',updateEstimate));
+['worked','start','end','break','breakNight','otH','otM','rate','premium','transp'].forEach(id=>$(id).addEventListener('input',updateEstimate));
 $('breakNight').addEventListener('change',updateEstimate);
-$('save').onclick=()=>{let k=key(selected);if($('worked').value==='no'){delete data[k]}else{data[k]={worked:true,shift:$('shift').value,start:$('start').value,end:$('end').value,break:Number($('break').value)||0,breakNight:$('breakNight').checked,otMin:(Number($('otH').value)||0)*60+(Number($('otM').value)||0),rate:Number($('rate').value)||0,premium:Number($('premium').value)||0,weekendBonus:Number($('weekendBonus').value)||0}}saveLocal();render()};
+$('save').onclick=()=>{let k=key(selected);if($('worked').value==='no'){delete data[k]}else{data[k]={worked:true,shift:$('shift').value,start:$('start').value,end:$('end').value,break:Number($('break').value)||0,breakNight:$('breakNight').checked,otMin:(Number($('otH').value)||0)*60+(Number($('otM').value)||0),rate:Number($('rate').value)||0,premium:Number($('premium').value)||0,transp:Number($('transp').value)||0}}saveLocal();render()};
 $('clear').onclick=()=>{delete data[key(selected)];saveLocal();render()};
 render();
 </script>
