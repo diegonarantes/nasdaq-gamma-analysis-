@@ -55,7 +55,7 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin:18px 0}
 </div>
 <div class="wrap">
 <header class="top">
- <div><h1>Furukawa <span style="color:var(--green)">•</span> Controle de Trabalho</h1><div class="sub">Empreiteira Just · Calendário, horas e previsão salarial</div></div>
+ <div><h1>Furukawa <span style="color:var(--green)">•</span> Controle de Trabalho</h1><div class="sub">Fábrica Furukawa Electric · Empreiteira Just Logística · Calendário, horas e previsão salarial</div></div>
  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
   <button id="dlCsv" title="Baixar o resumo do mês em CSV (abre no Excel/Sheets)">⬇️ Baixar CSV do mês</button>
   <button id="dlBackup" title="Salvar um backup de todos os registros">💾 Backup</button>
@@ -83,23 +83,24 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin:18px 0}
   <div class="field"><label>Data selecionada</label><input id="dateLabel" readonly></div>
   <div class="field"><label>Trabalhou neste dia?</label><select id="worked"><option value="no">Não trabalhei / folga</option><option value="yes">Sim, trabalhei</option></select></div>
   <div class="field"><label>Turno</label><select id="shift">
-   <option value="1">1º turno · 08:00–16:45</option>
-   <option value="2">2º turno · 16:35–23:35</option>
-   <option value="3">3º turno · 23:35–08:10</option>
+   <option value="1">1º turno · 08:00–16:45 (7h45)</option>
+   <option value="2">2º turno · 16:35–23:35 (6h15)</option>
+   <option value="3">3º turno · 23:25–08:10 (7h45)</option>
+   <option value="4">4º turno · 20:00–04:45 (7h45)</option>
    <option value="custom">Personalizado</option>
   </select></div>
   <div class="row"><div class="field"><label>Entrada</label><input id="start" type="time" value="08:00"></div><div class="field"><label>Saída</label><input id="end" type="time" value="16:45"></div></div>
   <div class="row"><div class="field"><label>Kyūkei / intervalo (min)</label><input id="break" type="number" min="0" max="600" step="5" value="60"></div><div class="field"><label>Valor hora (¥)</label><input id="rate" type="number" min="0" step="1" value="1670"></div></div>
   <div class="check"><input type="checkbox" id="breakNight"><label for="breakNight" style="margin:0;color:var(--muted)">Kyūkei cai dentro da faixa noturna (22h–5h) — desconta também do adicional</label></div>
   <div class="row"><div class="field"><label>Hora extra — horas</label><input id="otH" type="number" min="0" step="1" value="0"></div><div class="field"><label>Hora extra — minutos</label><input id="otM" type="number" min="0" max="59" step="1" value="0"></div></div>
-  <div class="small" style="margin-top:-4px">Minutos extras feitos além do turno normal (7,75h). Ex.: 0h e 45min = 45 minutos de extra.</div>
+  <div class="small" style="margin-top:-4px">Minutos extras feitos além da jornada normal do turno. Ex.: 0h e 45min = 45 minutos de extra (+25%).</div>
   <div class="row"><div class="field"><label>Adicional noturno (%)</label><input id="premium" type="number" min="0" step="1" value="25"></div><div class="field"><label>Ajuda sábado/domingo (¥)</label><input id="weekendBonus" type="number" min="0" step="100" value="2000"></div></div>
   <div class="info" id="estimate">Estimativa do dia: ¥0</div>
   <div class="actions"><button class="primary" id="save">Salvar dia</button><button id="clear">Limpar dia</button></div>
   <hr>
   <h2>Parâmetros e observações</h2>
-  <div class="small">O kyūkei (intervalo/almoço) é descontado das horas. Ex.: 1º turno 08:00–16:45 = 8,75h − 60min = <b>7,75h líquidas</b>. O adicional noturno (+25%) incide só sobre as horas entre 22:00 e 05:00; se o turno virar a meia-noite, o cálculo já considera a virada.</div>
-  <div class="info">Base conforme a foto: ¥1.670/h, +25% noturno, três turnos e ¥2.000 de ajuda em sábado/domingo trabalhado. O valor exibido é bruto estimado, antes de impostos/descontos de folha.</div>
+  <div class="small">Turnos (kyūkei já descontado): 1º 08:00–16:45 = <b>7h45</b>; 2º 16:35–23:35 = <b>6h15</b>; 3º 23:25–08:10 = <b>7h45</b>; 4º 20:00–04:45 = <b>7h45</b>. O adicional noturno (+25%) incide só sobre as horas entre 22:00 e 05:00; a virada da meia-noite já é considerada.</div>
+  <div class="info">Conforme o contrato (Just Logística / Furukawa Electric): salário total ¥1.670/h, hora extra ¥2.087,5/h (+25%, após 8h/dia), adicional noturno ¥417,5/h (22:00–05:00). O valor exibido é bruto estimado, antes de impostos/descontos de folha.</div>
  </aside>
 </div>
 <section class="panel" style="margin-top:14px">
@@ -117,7 +118,7 @@ let data={}; try{data=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){d
 try{const old=JSON.parse(localStorage.getItem('furukawa_just_work_v1')||'null');if(old&&!Object.keys(data).length){data=old}}catch(e){}
 let cursor=new Date(); cursor=new Date(cursor.getFullYear(),cursor.getMonth(),1);
 let selected=new Date(); selected.setHours(0,0,0,0);
-const SHIFTS={'1':{start:'08:00',end:'16:45'},'2':{start:'16:35',end:'23:35'},'3':{start:'23:35',end:'08:10'}};
+const SHIFTS={'1':{start:'08:00',end:'16:45',brk:60},'2':{start:'16:35',end:'23:35',brk:45},'3':{start:'23:25',end:'08:10',brk:60},'4':{start:'20:00',end:'04:45',brk:60}};
 const DEF_BREAK=60;
 const money=n=>'¥'+Math.round(n).toLocaleString('ja-JP');
 const pad=n=>String(n).padStart(2,'0');
@@ -252,7 +253,7 @@ $('impFile').onchange=e=>{
 };
 $('prev').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()-1,1);render()};
 $('next').onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1);render()};
-$('shift').onchange=()=>{let v=$('shift').value;if(SHIFTS[v]){$('start').value=SHIFTS[v].start;$('end').value=SHIFTS[v].end;$('break').value=DEF_BREAK;$('breakNight').checked=(v==='3')}updateEstimate()};
+$('shift').onchange=()=>{let v=$('shift').value;if(SHIFTS[v]){$('start').value=SHIFTS[v].start;$('end').value=SHIFTS[v].end;$('break').value=SHIFTS[v].brk;$('breakNight').checked=(v==='3'||v==='4')}updateEstimate()};
 ['worked','start','end','break','breakNight','otH','otM','rate','premium','weekendBonus'].forEach(id=>$(id).addEventListener('input',updateEstimate));
 $('breakNight').addEventListener('change',updateEstimate);
 $('save').onclick=()=>{let k=key(selected);if($('worked').value==='no'){delete data[k]}else{data[k]={worked:true,shift:$('shift').value,start:$('start').value,end:$('end').value,break:Number($('break').value)||0,breakNight:$('breakNight').checked,otMin:(Number($('otH').value)||0)*60+(Number($('otM').value)||0),rate:Number($('rate').value)||0,premium:Number($('premium').value)||0,weekendBonus:Number($('weekendBonus').value)||0}}saveLocal();render()};
