@@ -94,7 +94,7 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin:18px 0}
   <div class="row"><div class="field"><label>Kyūkei / intervalo (min)</label><input id="break" type="number" min="0" max="600" step="5" value="60"></div><div class="field"><label>Valor hora (¥)</label><input id="rate" type="number" min="0" step="1" value="1670"></div></div>
   <div class="check"><input type="checkbox" id="breakNight"><label for="breakNight" style="margin:0;color:var(--muted)">Kyūkei cai dentro da faixa noturna (22h–5h) — desconta também do adicional</label></div>
   <div class="row"><div class="field"><label>Hora extra — horas</label><input id="otH" type="number" min="0" step="1" value="0"></div><div class="field"><label>Hora extra — minutos</label><input id="otM" type="number" min="0" max="59" step="1" value="0"></div></div>
-  <div class="small" style="margin-top:-4px">Minutos extras feitos além da jornada normal do turno. Ex.: 0h e 45min = 45 minutos de extra (+25%).</div>
+  <div class="small" style="margin-top:-4px">Minutos trabalhados além do turno. Conforme o contrato, o +25% vale só para o que passar de 8h/dia; o que estiver abaixo disso entra na taxa normal.</div>
   <div class="row"><div class="field"><label>Adicional noturno (%)</label><input id="premium" type="number" min="0" step="1" value="25"></div><div class="field"><label>Ajuda transporte (¥/dia, +2h)</label><input id="transp" type="number" min="0" step="50" value="200"></div></div>
   <div class="info" id="estimate">Estimativa do dia: ¥0</div>
   <div class="actions"><button class="primary" id="save">Salvar dia</button><button id="clear">Limpar dia</button></div>
@@ -128,7 +128,7 @@ const fmtDate=d=>d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',mont
 function mins(t){let [h,m]=t.split(':').map(Number);return h*60+m}
 function overlap(a,b,c,d){return Math.max(0,Math.min(b,d)-Math.max(a,c))}
 function calc(rec,dateKey){
- if(!rec||!rec.worked)return {hours:0,base:0,ot:0,night:0,wk:0,transp:0,total:0,gross:0,brk:0,otHours:0,dayKind:'normal'};
+ if(!rec||!rec.worked)return {hours:0,base:0,ot:0,night:0,wk:0,transp:0,total:0,gross:0,brk:0,otHours:0,normalH:0,dayKind:'normal'};
  let s=mins(rec.start),e=mins(rec.end); if(e<=s)e+=1440;
  let gross=e-s, br=Math.max(0,Math.min(600,Number(rec.break)||0)), net=Math.max(0,gross-br);
  // horas noturnas (22:00–05:00) em janela de 2 dias, considerando virada
@@ -140,13 +140,15 @@ function calc(rec,dateKey){
  let d=new Date(dateKey+'T12:00:00'), wd=d.getDay();
  // adicional de folga por hora: domingo (法定休日) +35%, sábado (法定外休日) +25%
  let wkPct=wd===0?35:(wd===6?25:0), dayKind=wd===0?'dom':(wd===6?'sab':'normal');
- let base=net/60*rate;
- let wk=net/60*rate*wkPct/100;
- let otPay=extraMin/60*rate*1.25;
+ let workedMin=net+extraMin;                 // total trabalhado (turno + extra lançado)
+ let otMin=Math.max(0,workedMin-480);        // só o que passa de 8h/dia é hora extra (+25%)
+ let normalMin=workedMin-otMin;              // até 8h = taxa normal (do dia)
+ let base=normalMin/60*rate;
+ let wk=normalMin/60*rate*wkPct/100;         // adicional FDS/feriado incide sobre as horas normais
+ let otPay=otMin/60*rate*1.25;               // hora extra +25%
  let nightPay=night/60*rate*prem/100;
- let totalWorked=net+extraMin;
- let transp=(totalWorked>120)?(Number(rec.transp)||0):0;
- return {hours:totalWorked/60,base,ot:otPay,night:nightPay,wk,transp,total:base+wk+otPay+nightPay+transp,gross:gross/60,brk:br,otHours:extraMin/60+Math.max(0,net/60-8),dayKind};
+ let transp=(workedMin>120)?(Number(rec.transp)||0):0;
+ return {hours:workedMin/60,base,ot:otPay,night:nightPay,wk,transp,total:base+wk+otPay+nightPay+transp,gross:gross/60,brk:br,otHours:otMin/60,normalH:normalMin/60,dayKind};
 }
 function saveLocal(){localStorage.setItem(KEY,JSON.stringify(data))}
 function renderCalendar(){
@@ -177,9 +179,8 @@ function updateEstimate(){
  let otMin=(Number($('otH').value)||0)*60+(Number($('otM').value)||0);
  let r={worked:yes,shift:$('shift').value,start:$('start').value,end:$('end').value,break:$('break').value,breakNight:$('breakNight').checked,otMin:otMin,rate:$('rate').value,premium:$('premium').value,transp:$('transp').value};
  let c=calc(r,k);
- let netH=c.hours-otMin/60;
  let kindTxt=c.dayKind==='dom'?` · domingo +35% ${money(c.wk)}`:(c.dayKind==='sab'?` · sábado +25% ${money(c.wk)}`:'');
- $('estimate').innerHTML=yes?`Estimativa do dia: <b style="color:var(--green)">${money(c.total)}</b><br><span class="small">${netH.toFixed(2)}h normais${otMin?` + ${(otMin/60).toFixed(2)}h extra`:''} = <b>${c.hours.toFixed(2)}h</b> · base ${money(c.base)}${c.ot?` · extra +25% ${money(c.ot)}`:''}${c.night?` · noturno ${money(c.night)}`:''}${kindTxt}${c.transp?` · transp. ${money(c.transp)}`:''}</span>`:'Dia marcado como folga. Nenhum valor será contabilizado.';
+ $('estimate').innerHTML=yes?`Estimativa do dia: <b style="color:var(--green)">${money(c.total)}</b><br><span class="small">${c.normalH.toFixed(2)}h normais${c.otHours?` + ${c.otHours.toFixed(2)}h extra +25%`:''} = <b>${c.hours.toFixed(2)}h</b> · base ${money(c.base)}${c.ot?` · extra ${money(c.ot)}`:''}${c.night?` · noturno ${money(c.night)}`:''}${kindTxt}${c.transp?` · transp. ${money(c.transp)}`:''}</span>`:'Dia marcado como folga. Nenhum valor será contabilizado.';
 }
 function renderSummary(){
  let y=cursor.getFullYear(),m=cursor.getMonth(),rows=[],tot={hours:0,base:0,ot:0,night:0,wk:0,transp:0,total:0},count=0;
